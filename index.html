@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Line Graph Report Workshop</title>
+<style>
+/* Layout: workshop bench. Home = three workshop cards (support fades 1→3). Inside a workshop: step chips, graph pinned beside the task on wide screens.
+   Theme: Rust & Slate (new for this series). */
+:root{
+  --bg:#eef1f4; --dot:rgba(47,62,87,.08); --card:#ffffff; --ink:#1c2433; --muted:#5a6577; --line:#d7dde6;
+  --head:#2f3e57; --onhead:#f5f7fb;
+  --pri:#b5482a; --onpri:#ffffff; --pri-soft:#f8e3dc;
+  --sec:#2f6f8f; --sec-soft:#dcebf2;
+  --good:#1b7f4c; --good-soft:#dcf3e6; --bad:#b3362c; --bad-soft:#fbe3e0; --gold:#c98a00; --gold-soft:#fdf1d6;
+  --c0:#b5482a; --c1:#2f6f8f; --c2:#c98a00; --c3:#6a4c93;
+  --font-display:"Trebuchet MS","Segoe UI",system-ui,sans-serif;
+  --font-body:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --font-ar:"Tahoma","Geeza Pro","Noto Naskh Arabic","Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#12161d; --dot:rgba(124,196,228,.06); --card:#1b212b; --ink:#e9edf3; --muted:#a3adbd; --line:#303a49;
+  --head:#1d2738; --onhead:#eef2f8; --pri:#ff8a65; --onpri:#2a0f06; --pri-soft:#3a2019;
+  --sec:#7cc4e4; --sec-soft:#16303d;
+  --good:#62d394; --good-soft:#12301f; --bad:#ff8f84; --bad-soft:#3a1a17; --gold:#f2c14e; --gold-soft:#3a2e10;
+  --c0:#ff8a65; --c1:#7cc4e4; --c2:#f2c14e; --c3:#b79cff; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#12161d; --dot:rgba(124,196,228,.06); --card:#1b212b; --ink:#e9edf3; --muted:#a3adbd; --line:#303a49;
+  --head:#1d2738; --onhead:#eef2f8; --pri:#ff8a65; --onpri:#2a0f06; --pri-soft:#3a2019;
+  --sec:#7cc4e4; --sec-soft:#16303d;
+  --good:#62d394; --good-soft:#12301f; --bad:#ff8f84; --bad-soft:#3a1a17; --gold:#f2c14e; --gold-soft:#3a2e10;
+  --c0:#ff8a65; --c1:#7cc4e4; --c2:#f2c14e; --c3:#b79cff; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{font-size:18px}
+body{margin:0;font-family:var(--font-body);color:var(--ink);line-height:1.6;background-color:var(--bg);
+  background-image:radial-gradient(var(--dot) 1.5px,transparent 1.5px);background-size:24px 24px}
+h1,h2,h3,h4{font-family:var(--font-display);line-height:1.25;margin:0;text-wrap:balance}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.ar{direction:rtl;unicode-bidi:isolate;font-family:var(--font-ar);color:var(--muted)}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+header{background:var(--head);color:var(--onhead);position:sticky;top:0;z-index:20;box-shadow:0 2px 12px rgba(0,0,0,.2)}
+.hd{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding-block:12px}
+.hd .t{flex:1 1 260px;min-width:0}
+.hd h1{font-size:1.35rem}
+.hd small{opacity:.88;font-size:.82rem}
+.hd .ar{color:var(--onhead);opacity:.9}
+.meter{display:flex;align-items:center;gap:10px;flex:1 1 220px}
+.track{flex:1;height:12px;border-radius:99px;background:rgba(255,255,255,.18);overflow:hidden}
+.fill{height:100%;width:0;background:linear-gradient(90deg,var(--pri),var(--gold));transition:width .4s}
+.pill{background:rgba(255,255,255,.14);border-radius:99px;padding:4px 12px;font-weight:700;font-size:.86rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tb{background:transparent;border:1.5px solid rgba(255,255,255,.55);color:var(--onhead);border-radius:10px;padding:5px 11px;font-size:.8rem;font-weight:600}
+.tb:hover{background:rgba(255,255,255,.1)}
+@media (max-width:700px){ header{position:static} }
+
+main{padding-block:16px 40px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;min-width:0}
+.eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:.72rem;font-weight:800;color:var(--pri)}
+.btn{border:none;border-radius:11px;padding:9px 16px;font-weight:700;background:var(--pri);color:var(--onpri)}
+.btn:hover{filter:brightness(1.07)}
+.btn.sec{background:var(--sec);color:var(--card)}
+.btn.ghost{background:transparent;border:2px solid var(--pri);color:var(--pri)}
+.btn.gold{background:var(--gold);color:#1c2433}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.stack{display:flex;flex-direction:column;gap:14px;min-width:0}
+
+/* home */
+.hero h2{font-size:1.9rem;color:var(--head)}
+.hero p{max-width:66ch}
+.wks{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:14px}
+.wk{border:2px solid var(--line);border-radius:16px;background:var(--card);padding:16px;display:flex;flex-direction:column;gap:8px;text-align:left}
+.wk:hover{border-color:var(--pri)}
+.wk .lvl{display:flex;gap:4px}
+.wk .lvl i{width:22px;height:8px;border-radius:4px;background:var(--line)}
+.wk .lvl i.on{background:var(--pri)}
+.wk h3{font-size:1.2rem}
+.wk .meta{font-size:.85rem;color:var(--muted)}
+.wk .st{margin-top:auto;font-size:.85rem;font-weight:700;color:var(--sec)}
+.wk.done{border-color:var(--good)}
+.wk.done .st{color:var(--good)}
+.wk svg{width:100%;height:auto;max-height:110px}
+.how{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.how div{border-left:4px solid var(--sec);background:var(--bg);border-radius:0 10px 10px 0;padding:8px 12px;font-size:.9rem}
+.name-in{border:2px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--bg);width:100%;max-width:360px}
+
+/* workshop */
+.wtop{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.wtop h2{font-size:1.4rem;color:var(--head)}
+.steps{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:12px;scrollbar-width:thin}
+.chip{flex:0 0 auto;display:flex;align-items:center;gap:8px;border:2px solid var(--line);background:var(--card);border-radius:12px;padding:7px 12px;font-weight:700;font-size:.84rem}
+.chip .n{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--sec-soft);color:var(--sec);font-size:.78rem;font-weight:800}
+.chip.on{border-color:var(--pri);box-shadow:0 0 0 3px var(--pri-soft)}
+.chip.done .n{background:var(--good);color:var(--card)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+@media (min-width:980px){ .layout.two{grid-template-columns:minmax(0,440px) minmax(0,1fr)} .layout.two .side{position:sticky;top:90px;align-self:start} }
+.intro h3{font-size:1.45rem;color:var(--pri);margin:2px 0 6px}
+.intro p{margin:4px 0;max-width:68ch}
+
+/* graph */
+.gcard h4{font-size:1rem;margin-bottom:4px}
+.gcard .task{font-size:.84rem;color:var(--muted);margin:0 0 8px}
+.gsvg{width:100%;height:auto;display:block}
+.gsvg text{fill:var(--muted);font-family:var(--font-body)}
+.gsvg .axis{stroke:var(--muted);stroke-width:1.2}
+.gsvg .gl{stroke:var(--line);stroke-width:1}
+.gsvg .ln{fill:none;stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
+.gsvg .vl{font-size:11px;font-weight:700}
+.s0{stroke:var(--c0);fill:var(--c0)} .s1{stroke:var(--c1);fill:var(--c1)} .s2{stroke:var(--c2);fill:var(--c2)} .s3{stroke:var(--c3);fill:var(--c3)}
+.ln.s0,.ln.s1,.ln.s2,.ln.s3{fill:none}
+.gsvg text.s0{fill:var(--c0)} .gsvg text.s1{fill:var(--c1)} .gsvg text.s2{fill:var(--c2)} .gsvg text.s3{fill:var(--c3)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.82rem;margin-top:6px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend svg{width:30px;height:14px}
+.toggle{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;color:var(--muted);margin-top:8px}
+
+/* animation */
+.yr{font-family:var(--font-display);font-size:2.4rem;font-weight:800;color:var(--pri);font-variant-numeric:tabular-nums;line-height:1}
+.yr small{display:block;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.gsvg .hl{font-size:13px;font-weight:800}
+.cap{margin-top:12px;min-height:3.2em;font-size:1.2rem;background:var(--sec-soft);border-radius:12px;padding:10px 16px;transition:opacity .25s}
+.cap em{font-style:normal;color:var(--pri);font-weight:800;border-bottom:3px solid var(--gold)}
+.phr{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.ph{border:2px solid var(--line);border-radius:99px;padding:5px 12px;font-size:.86rem;font-weight:700;background:var(--card);transition:all .3s}
+.ph .ar{font-size:.85rem;margin-left:6px}
+.ph.lit{background:var(--gold);border-color:var(--gold);color:#1c2433;transform:scale(1.06)}
+.ph.lit .ar{color:#1c2433}
+.ring{fill:none;stroke:var(--gold);stroke-width:3}
+.ring.pulse{transform-box:fill-box;transform-origin:center;animation:pulse 1.4s ease-out infinite}
+@keyframes pulse{0%{transform:scale(.7);opacity:1}100%{transform:scale(2.2);opacity:0}}
+
+/* items */
+.item{border:1.5px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--card);min-width:0}
+.item.ok{border-color:var(--good);background:linear-gradient(0deg,var(--good-soft),var(--card) 70%)}
+.item h4{font-size:1rem;margin-bottom:6px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.qn{color:var(--sec);font-weight:800}
+.opts{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.opt{border:2px solid var(--line);background:var(--bg);border-radius:10px;padding:7px 14px;font-weight:600;text-align:left}
+.opt:hover:not([disabled]){border-color:var(--sec)}
+.opt.right{border-color:var(--good);background:var(--good-soft)}
+.opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.fb{margin-top:8px;font-size:.92rem;border-radius:10px}
+.fb:not(:empty){padding:8px 12px}
+.fb.good{background:var(--good-soft)} .fb.bad{background:var(--bad-soft)} .fb.tip{background:var(--gold-soft)}
+.numin{border:2px solid var(--line);border-radius:9px;padding:5px 8px;background:var(--bg);width:6em}
+select.grp{border:2px solid var(--line);border-radius:9px;padding:5px 8px;background:var(--bg)}
+.lineRow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line);flex-wrap:wrap}
+.lineRow:last-child{border-bottom:none}
+.sw{display:inline-flex;align-items:center;gap:8px;font-weight:700}
+.feat{display:flex;gap:10px;align-items:flex-start;padding:6px 8px;border-radius:10px}
+.feat input{margin-top:6px;width:18px;height:18px;accent-color:var(--pri)}
+.feat.ok{background:var(--good-soft)} .feat.no{background:var(--bad-soft)}
+
+/* frames */
+.frame{line-height:2.3;font-size:1.02rem}
+.frame input{border:none;border-bottom:3px solid var(--sec);background:var(--sec-soft);border-radius:6px 6px 0 0;padding:2px 8px;min-width:3.5em;max-width:100%;font-weight:700}
+.frame input.ok{border-bottom-color:var(--good);background:var(--good-soft)}
+.frame input.no{border-bottom-color:var(--bad);background:var(--bad-soft)}
+.chunks{display:flex;flex-direction:column;gap:12px}
+.chunk .orig{font-size:.85rem;color:var(--muted)}
+.chunk .orig b{color:var(--ink)}
+
+/* writing */
+textarea{width:100%;min-height:100px;border:2px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg);resize:vertical;line-height:1.6}
+textarea:focus{border-color:var(--sec)}
+textarea.big{min-height:340px}
+.plabel{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline}
+.wc{font-size:.82rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.mis{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:4px;font-size:.88rem}
+.mis li{display:flex;gap:8px;align-items:flex-start}
+.mis .d{flex:0 0 20px;height:20px;border-radius:50%;display:inline-grid;place-items:center;font-size:.72rem;font-weight:800;background:var(--line);color:var(--muted)}
+.mis li.yes .d{background:var(--good);color:var(--card)}
+.mis .ar{font-size:.82rem;margin-left:4px}
+.hints{display:grid;gap:6px;margin-top:6px}
+.hint{background:var(--gold-soft);border-radius:10px;padding:8px 12px;font-size:.92rem}
+.datacard{overflow-x:auto}
+.datacard table{border-collapse:collapse;font-size:.85rem;font-variant-numeric:tabular-nums;width:100%}
+.datacard th,.datacard td{border-bottom:1px solid var(--line);padding:4px 6px;text-align:right;white-space:nowrap}
+.datacard th:first-child,.datacard td:first-child{text-align:left}
+.model{margin-top:10px;padding:12px 14px;border-radius:12px;background:var(--gold-soft);font-size:.95rem}
+.model p{margin:6px 0}
+.timer{font-family:var(--font-display);font-size:2rem;font-weight:800;font-variant-numeric:tabular-nums;color:var(--head)}
+.timer.low{color:var(--bad)}
+.self label{display:flex;gap:8px;align-items:flex-start;padding:3px 0;font-size:.93rem}
+.self input{margin-top:5px;width:18px;height:18px;accent-color:var(--pri)}
+
+/* error hunt */
+.hunt{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.hc{border:1.5px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 10px;font-weight:600}
+.hc:hover:not([disabled]){border-color:var(--pri)}
+.hc.miss{animation:shake .35s}
+.hc.found{border-color:var(--bad);background:var(--bad-soft);text-decoration:line-through}
+.fix{color:var(--good);font-weight:800}
+@keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+.cert{border:6px double var(--head);border-radius:16px;padding:26px 18px;text-align:center;background:var(--card)}
+.cert h2{font-size:1.9rem}
+.cert .who{font-family:var(--font-display);font-size:1.8rem;color:var(--pri);border-bottom:2px solid var(--line);display:inline-block;padding:0 18px 4px;margin:8px 0}
+.locked{opacity:.55}
+/* enlarge graph */
+.zoomB{margin-left:auto;border:2px solid var(--sec);background:transparent;color:var(--sec);border-radius:9px;padding:3px 10px;font-size:.8rem;font-weight:700}
+.zoomB:hover{background:var(--sec-soft)}
+.gtools{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+#zoom{position:fixed;inset:0;z-index:70;background:rgba(10,14,20,.72);display:flex;align-items:center;justify-content:center;padding:calc(12px + env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px))}
+#zoom[hidden]{display:none}
+#zoom .zc{background:var(--card);border-radius:16px;padding:16px 18px;width:min(1200px,100%);max-height:100%;overflow:auto}
+#zoom .zh{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+#zoom .zh h4{font-size:1.15rem}
+#zoom .gsvg{max-height:72vh}
+#zoom .gsvg text{font-size:15px}
+#zoom .zh .btn{white-space:nowrap}
+.zscroll{overflow-x:auto}
+@media (max-width:700px){ #zoom .gsvg{min-width:680px;max-height:none} }
+footer{text-align:center;padding-block:18px 30px;color:var(--muted);font-size:.88rem}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:12px;font-weight:600;z-index:60;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90vw;text-align:center}
+#toast.show{opacity:1}
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:50}
+#printArea{display:none}
+@media print{
+  body{background:#fff}
+  body > *:not(#printArea){display:none!important}
+  #printArea{display:block;font-family:Georgia,serif;color:#000;font-size:12pt}
+  #printArea h1{font-size:18pt} #printArea h2{font-size:14pt;margin-top:18pt;border-bottom:1px solid #999}
+  #printArea .p{white-space:pre-wrap;border:1px solid #ccc;padding:8pt;border-radius:6pt}
+  #printArea .pb{page-break-before:always}
+  #printArea .pc{border:6px double #2f3e57;padding:50pt;text-align:center;margin-top:60pt}
+}
+@media (prefers-reduced-motion:reduce){ .ring.pulse,.hc.miss{animation:none} .fill,.cap,.ph{transition:none} }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap hd">
+    <div class="t"><h1>Line Graph Report Workshop</h1><small>IELTS Writing Task 1 · from notes to a full report · <span class="ar">من الملاحظات إلى تقرير كامل</span></small></div>
+    <div class="meter"><div class="track" aria-label="Progress"><div class="fill" id="fill"></div></div><span class="pill" id="pts">0 pts</span></div>
+    <div class="row"><button class="tb" type="button" id="homeB">All workshops</button><button class="tb" type="button" id="saveB">Save progress</button><button class="tb" type="button" id="loadB">Load progress</button><button class="tb" type="button" id="pdfB">Save my reports as PDF</button><input type="file" id="fileIn" accept=".json" hidden></div>
+  </div>
+</header>
+<main class="wrap" id="main"></main>
+<footer class="wrap">Designed by: <b>Nazila Motahari</b> · Line Graph Report Workshop · follows Line Graph Sentence Studio</footer>
+<canvas id="confetti"></canvas>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="zoom" hidden role="dialog" aria-modal="true" aria-label="Enlarged graph"></div>
+<div id="printArea"></div>
+
+<script>
+/* =================================================================== DATA */
+const RE = {
+  p1:/\b(rose|increased|grew|climbed|soared|fell|decreased|dropped|declined|plummeted)\s+(sharply|dramatically|significantly|considerably|rapidly|steadily|gradually|slightly|marginally)\b/,
+  p2:/\bthere (was|were) (a|an)\s+(sharp|dramatic|significant|considerable|rapid|steady|gradual|slight|small|marginal|huge)\s+(rise|increase|growth|fall|decrease|decline|drop)\b/,
+  key:/\b(peak|peaked|overtook|overtaking|fluctuated|levell?ed off|a low|remained stable|recovered|stabili[sz]ed)\b/g,
+  link:/\b(whereas|while|in contrast|by contrast|on the other hand|however|similarly|likewise|turning to|meanwhile)\b/g,
+  fig:/\d[\d,.]*\s*(%|percent|thousand|,000|k\b)?/g,
+  report:/\b(illustrates|shows|compares|presents|gives information|depicts)\b/
+};
+const W = [
+ { id:0, name:'Workshop 1', level:3, sub:'Guided', ar:'ورشة موجّهة', topic:'Devices at home',
+   about:'Lots of help: you choose, complete and build each paragraph step by step.',
+   G:{ title:'Devices owned by households, 2004–2024', task:'The graph below shows the percentage of households in one country that owned four types of device between 2004 and 2024.',
+       x:['2004','2008','2012','2016','2020','2024'], numeric:true, max:100, step:20, yLabel:'% of households', fmt:v=>Math.round(v)+'%',
+       series:[{name:'Desktop computer',ar:'الحاسوب المكتبي',v:[62,60,51,38,27,20]},{name:'Laptop',ar:'الحاسوب المحمول',v:[18,35,52,58,55,50]},{name:'Tablet',ar:'الجهاز اللوحي',v:[0,2,20,34,37,38]},{name:'Smartphone',ar:'الهاتف الذكي',v:[5,15,42,70,86,92]}] },
+   rings:[[1,0],[3,0],[3,1]],
+   caps:[[0,-1,'<b>2004:</b> desktop computers lead with 62%. Smartphones start at only 5%.'],[0.9,0,'Laptops <em>rose sharply</em>…'],[1.8,1,'…and <em>overtook</em> desktops between 2008 and 2012.'],[2.25,2,'Smartphones <em>soared</em>, overtaking desktops and then laptops.'],[3.0,3,'Laptops <em>reached a peak</em> of 58% in 2016, then fell slightly.'],[3.4,4,'Tablets <em>levelled off</em> at around 38%.'],[3.95,5,'Desktop computers <em>declined steadily</em> to just 20%.'],[4.7,-1,'By 2024, 92% of households had a smartphone: the most common device.']],
+   chips:[['rose sharply','ارتفع بشكل حاد'],['overtook','تجاوز'],['soared','ارتفع بشدة'],['reached a peak','بلغ الذروة'],['levelled off','استقرّ'],['declined steadily','تراجع بثبات']],
+   notice:[
+     {q:'Which device was the most common in 2004?', o:['Desktop computer','Laptop','Smartphone','Tablet'], w:'The desktop line starts highest, at 62%.'},
+     {q:'Which device was the most common in 2024?', o:['Smartphone','Laptop','Desktop computer','Tablet'], w:'The smartphone line ends highest, at 92%.'},
+     {q:'When did laptop ownership reach its peak?', o:['2016','2012','2020','2024'], w:'The laptop line is highest in 2016 (58%), then it falls.'},
+     {q:'Between which years did smartphones overtake laptops?', o:['2012 and 2016','2008 and 2012','2016 and 2020','2004 and 2008'], w:'In 2012 smartphones (42%) were below laptops (52%); in 2016 they were above (70% vs 58%).'},
+     {q:'What happened to tablet ownership after 2016?', o:['It levelled off','It fell sharply','It fluctuated a lot','It overtook laptops'], w:'34% → 37% → 38%: the line becomes almost flat.'},
+     {num:true, q:'By how many percentage points did desktop ownership fall over the whole period?', a:42, unit:'percentage points', w:'62 − 20 = 42. You can write "fell by 42 percentage points".'}
+   ],
+   groups:[[0,1],[2,3]], groupWhy:'Desktops and laptops are both computers and they cross; smartphones and tablets are both mobile devices and both rose.',
+   feats:[['Smartphones became the most common device by 2024.',1],['Mobile devices became more popular, while desktop computers declined.',1],['Laptop ownership was 58% in 2016.',0,'This is a detail with a number. Details go in the body paragraphs.'],['Tablets were more common than smartphones in 2024.',0,'Check the graph: tablets 38%, smartphones 92%.'],['Desktop computers rose steadily.',0,'The desktop line goes down, not up.']],
+   steps:['watch','notice','plan','introB','overF','b1F','b2F','errors','final'],
+   introChunks:[
+     {orig:'The graph below shows', o:['The line graph illustrates','The graph below shows','The line graph is showing information about'], why:['Good: a new reporting verb.','This copies the question.','"is showing information about" is not natural here.']},
+     {orig:'the percentage of households in one country', o:['the proportion of homes in one country','the percentage of households in one country','the amount of houses of people living in one country'], why:['Good: proportion = percentage, homes = households.','This copies the question.','"amount" is for things we cannot count, and the meaning changes.']},
+     {orig:'that owned four types of device', o:['that had a desktop computer, a laptop, a tablet and a smartphone','that owned four types of device','which owning four different kinds of electronic devices in their homes'], why:['Good: naming the four devices is a clear paraphrase.','This copies the question.','"which owning" is a grammar mistake.']},
+     {orig:'between 2004 and 2024.', o:['over the twenty years from 2004 to 2024.','between 2004 and 2024.','during the period in 2004 until to 2024.'], why:['Good: the time is paraphrased.','This copies the question.','"until to" is a grammar mistake.']}
+   ],
+   overF:['Overall, ',{a:['mobile devices','smartphones','tablets','mobile phones'],h:'Which kind of devices grew?'},' became much more common, whereas ',{a:['desktop'],h:'Which device became less popular?'},' became less popular. The most striking change was the growth of ',{a:['smartphone'],h:'Which line changed the most?'},', which became the most ',{a:['common','widely owned','popular'],h:'most common / most popular'},' device by the end of the period.'],
+   b1F:['In 2004, desktop computers were the most common device, owned by ',{num:62,h:'Read the desktop line in 2004.'},'% of households. However, this figure ',{a:['declined','fell','decreased','dropped'],h:'Use a past-tense verb that goes down.'},' ',{a:['steadily','significantly','considerably','sharply','dramatically'],h:'Use an adverb for a big, continuous fall.'},' after 2008, and by 2024 it was just ',{num:20,h:'Read the desktop line in 2024.'},'%. ',{a:['in contrast','on the other hand','by contrast','however'],h:'Laptops did the opposite: use a contrast linker.'},', laptop ownership rose sharply from 18% to a peak of ',{num:58,h:'The highest point of the laptop line.'},'% in ',{num:2016,h:'Which year was the laptop peak?'},'. Laptops overtook desktops between ',{num:2008,h:'When did the two lines cross?'},' and ',{num:2012,h:'When did the two lines cross?'},', and after 2016 laptop ownership ',{a:['decreased','fell','declined','dropped'],h:'Did it go up or down after 2016?'},' slightly to 50%.'],
+   b2F:['Turning to mobile devices, only ',{num:5,h:'Read the smartphone line in 2004.'},'% of households had a smartphone in 2004. There was a ',{a:['dramatic','sharp','significant','considerable','rapid','huge'],h:'Use an adjective for a very big change.'},' ',{a:['rise','increase','growth'],h:'Use a noun that means going up.'},' over the next twelve years, and smartphones ',{a:['overtook'],h:'Which verb means "went higher than"?'},' both laptops and desktops between ',{num:2012,h:'When did smartphones pass the other lines?'},' and ',{num:2016,h:'When did smartphones pass the other lines?'},'. By 2024, the figure had reached ',{num:92,h:'Read the smartphone line in 2024.'},'%. ',{a:['similarly','likewise','in the same way'],h:'Tablets also rose: use a similarity linker.'},', tablet ownership grew rapidly to ',{num:34,h:'Read the tablet line in 2016.'},'% in 2016, and then it ',{a:['levelled off','leveled off','remained stable','stabilised','stabilized'],h:'After 2016 the tablet line becomes almost flat.'},' at around 38%.'],
+   errors:[
+     {c:['Smartphone ownership','increased','dramatic','from 5%','to 92%.'], i:2, fix:'dramatically', why:'After a verb (increased) we need an adverb.'},
+     {c:['There was','a sharply','rise','in tablet ownership','after 2008.'], i:1, fix:'a sharp', why:'Before a noun (rise) we need an adjective.'},
+     {c:['Laptop ownership','reached a peak','at 58%','in 2016.'], i:2, fix:'of 58%', why:'We say "a peak of" + number.'},
+     {c:['In 2004,','desktop computers','are','the most common device.'], i:2, fix:'were', why:'2004 is in the past, so use the past tense.'},
+     {c:['Desktop ownership','fell','by 62%','to 20%.'], i:2, fix:'from 62%', why:'"from … to …" gives the start and end. It did not fall BY 62%.'},
+     {c:['Smartphones','overtaked','laptops','between 2012 and 2016.'], i:1, fix:'overtook', why:'"overtake" is irregular: overtake → overtook.'}
+   ],
+   model:['The line graph illustrates the proportion of homes in one country that had a desktop computer, a laptop, a tablet and a smartphone over the twenty years from 2004 to 2024.',
+     'Overall, mobile devices became much more common, whereas desktop computers became less popular. The most striking change was the growth of smartphones, which became the most widely owned device by the end of the period.',
+     'In 2004, desktop computers were the most common device, owned by 62% of households. However, this figure declined steadily after 2008, and by 2024 it was just 20%. In contrast, laptop ownership rose sharply from 18% to a peak of 58% in 2016. Laptops overtook desktops between 2008 and 2012, and after 2016 laptop ownership decreased slightly to 50%.',
+     'Turning to mobile devices, only 5% of households had a smartphone in 2004. There was a dramatic rise over the next twelve years, and smartphones overtook both laptops and desktops between 2012 and 2016. By 2024, the figure had reached 92%. Similarly, tablet ownership grew rapidly to 34% in 2016, and then it levelled off at around 38%.']
+ },
+ { id:1, name:'Workshop 2', level:2, sub:'Supported', ar:'ورشة بدعم', topic:'Subjects at college',
+   about:'Some help: you write every paragraph yourself, with hints and a language checklist.',
+   G:{ title:'Students enrolled in four subjects, 2004–2024', task:'The graph below shows the number of students enrolled in four subjects at colleges in one country between 2004 and 2024.',
+       x:['2004','2008','2012','2016','2020','2024'], numeric:true, max:50, step:10, yLabel:'Students (thousands)', fmt:v=>Math.round(v)+',000',
+       series:[{name:'Business',ar:'إدارة الأعمال',v:[30,34,38,36,33,31]},{name:'IT',ar:'تقنية المعلومات',v:[8,12,18,26,35,42]},{name:'Education',ar:'التربية',v:[20,21,20,22,20,21]},{name:'Engineering',ar:'الهندسة',v:[25,22,19,15,16,17]}] },
+   rings:[[1,2],[1,0]],
+   caps:[[0,-1,'<b>2004:</b> business is the most popular subject, with 30,000 students.'],[0.8,0,'IT starts small, but it <em>grows steadily</em>…'],[1.6,1,'Business <em>reached a peak</em> of 38,000 in 2012.'],[2.1,2,'IT <em>overtook</em> engineering and education.'],[2.6,3,'Engineering <em>hit a low</em> of 15,000 in 2016.'],[3.1,4,'Education <em>fluctuated</em> around 20,000 the whole time.'],[3.8,2,'Then IT <em>overtook</em> business too!'],[4.6,-1,'By 2024, IT had 42,000 students: the most popular subject.']],
+   chips:[['grew steadily','نما بثبات'],['reached a peak','بلغ الذروة'],['overtook','تجاوز'],['hit a low','وصل إلى أدنى مستوى'],['fluctuated','تذبذب']],
+   notice:[
+     {q:'Which subject was the most popular in 2004?', o:['Business','IT','Engineering','Education'], w:'Business starts highest, with 30,000 students.'},
+     {q:'Which subject was the most popular in 2024?', o:['IT','Business','Engineering','Education'], w:'IT ends highest, with 42,000 students.'},
+     {q:'When did business enrolments peak?', o:['2012','2008','2016','2024'], w:'Business reached 38,000 in 2012, then fell.'},
+     {q:'Which subject hardly changed?', o:['Education','Engineering','Business','IT'], w:'Education stayed between 20,000 and 22,000.'},
+     {num:true, q:'What was the lowest number of engineering students (in thousands)?', a:15, unit:'thousand', w:'Engineering hit a low of 15,000 in 2016.'}
+   ],
+   groups:[[0,1],[2,3]], groupWhy:'Business and IT are the two biggest subjects and they cross; education and engineering are smaller and changed less.',
+   feats:[['IT grew the most and became the most popular subject.',1],['The other three subjects changed relatively little.',1],['Business had 38,000 students in 2012.',0,'This is a detail with a number. Details go in the body paragraphs.'],['Engineering became the most popular subject.',0,'Check the graph: engineering ends at 17,000.'],['Education fell dramatically.',0,'Education stayed almost the same.']],
+   steps:['watch','notice','plan','write','errors','final'],
+   write:[
+     {k:'intro',label:'Introduction',ar:'المقدمة',min:20,hints:['Change "shows" to "compares" or "illustrates".','Paraphrase: "the number of students enrolled" → "how many students studied"; you can name the four subjects.','Finish with the time: "from 2004 to 2024" or "over a twenty-year period".']},
+     {k:'over',label:'Overview',ar:'النظرة العامة',min:20,hints:['Start with "Overall,". No numbers.','Feature 1: which subject grew the most, and where did it finish?','Feature 2: what about the other three subjects? Try "changed relatively little".']},
+     {k:'b1',label:'Body 1: business and IT',ar:'الفقرة الأولى',min:40,hints:['Group business and IT: they cross each other.','Business: 30,000 → a peak of 38,000 in 2012 → 31,000. Try "rose gradually to a peak of…, but then…".','IT: 8,000 → 42,000. Use "There was a significant increase…" and say when IT overtook business.']},
+     {k:'b2',label:'Body 2: education and engineering',ar:'الفقرة الثانية',min:35,hints:['Start with "Turning to the other subjects, …".','Education: "fluctuated slightly between 20,000 and 22,000".','Engineering: 25,000 → "a low of 15,000 in 2016" → "recovered slightly to 17,000". Link with "By contrast,".']}
+   ],
+   errors:[
+     {c:['Business enrolments','declined','slight','after 2012.'], i:2, fix:'slightly', why:'After a verb (declined) we need an adverb.'},
+     {c:['IT','has overtaken','business','between 2016 and 2020.'], i:1, fix:'overtook', why:'The time is finished (2016–2020), so use the past simple.'},
+     {c:['There was','a gradual increase','of business students','until 2012.'], i:2, fix:'in the number of business students', why:'We say "an increase IN …", and we count students with "the number of".'},
+     {c:['Engineering','fell','to a low','with 15,000 students','in 2016.'], i:3, fix:'of 15,000 students', why:'We say "a low of" + number.'},
+     {c:['Education','fluctuated','between 20,000','to 22,000.'], i:3, fix:'and 22,000', why:'"between … and …", not "between … to …".'}
+   ],
+   model:['The line graph compares the number of students who enrolled in four subjects at colleges in one country, namely business, IT, education and engineering, from 2004 to 2024.',
+     'Overall, IT experienced by far the largest growth and became the most popular subject by the end of the period. In contrast, the other three subjects changed relatively little, and education remained almost stable throughout.',
+     'In 2004, business was the most popular subject, with 30,000 students. This number rose gradually to a peak of 38,000 in 2012, but it then declined slightly to 31,000 in 2024. IT, on the other hand, started with only 8,000 students. However, there was a significant increase over the period, and IT overtook business between 2016 and 2020, finishing at 42,000.',
+     'Turning to the other subjects, the number of education students fluctuated slightly between 20,000 and 22,000 throughout the period. Engineering, by contrast, fell sharply from 25,000 to a low of 15,000 in 2016, before it recovered slightly to 17,000 in 2024.']
+ },
+ { id:2, name:'Workshop 3', level:1, sub:'On your own', ar:'بمفردك', topic:'Places to visit in a city',
+   about:'Exam practice: plan, then write the whole report in 20 minutes with only a checklist.',
+   G:{ title:'Daily visitors to four places in a city, one year', task:'The graph below shows the average number of daily visitors to four places in a city over one year.',
+       x:['Jan','Mar','May','Jul','Sep','Nov'], numeric:false, max:40, step:10, yLabel:'Visitors per day (thousands)', fmt:v=>Math.round(v)+',000',
+       series:[{name:'Beach',ar:'الشاطئ',v:[18,16,8,3,10,17]},{name:'Shopping mall',ar:'مركز التسوق',v:[20,22,28,35,26,24]},{name:'Museum',ar:'المتحف',v:[6,7,6,7,6,7]},{name:'Theme park',ar:'مدينة الملاهي',v:[14,12,6,2,7,19]}] },
+   rings:[[3,0]],
+   caps:[[0,-1,'<b>January:</b> the mall is the busiest place, with 20,000 visitors a day.'],[0.8,0,'As the weather got hotter, beach visitors <em>dropped sharply</em>…'],[1.6,-1,'…while the mall got busier and busier.'],[2.6,1,'In July, the theme park <em>hit a low</em> of 2,000, and the mall <em>reached a peak</em> of 35,000.'],[3.3,2,'After the summer, the beach and the theme park <em>recovered</em>.'],[3.9,3,'The museum <em>remained stable</em> all year.'],[4.55,4,'In November, the theme park <em>overtook</em> the beach.']],
+   chips:[['dropped sharply','انخفض بشكل حاد'],['hit a low / reached a peak','أدنى مستوى / الذروة'],['recovered','تعافى'],['remained stable','ظلّ مستقراً'],['overtook','تجاوز']],
+   steps:['watch','planNotes','exam'],
+   planQs:[['What are the two main features for your overview?','ما أهم ميزتين للنظرة العامة؟'],['What will Body 1 describe? (Tip: you can group by place OR by time, e.g. January to July.)','ماذا ستصف الفقرة الأولى؟'],['What will Body 2 describe?','ماذا ستصف الفقرة الثانية؟'],['Which key features will you mention? (peaks, lows, overtaking, stable)','ما النقاط الرئيسية التي ستذكرها؟']],
+   model:['The line graph illustrates the average number of people who visited four places in a city each day, namely a beach, a shopping mall, a museum and a theme park, over one year.',
+     'Overall, the shopping mall was the most popular place throughout the year and was busiest in the summer, whereas the beach and the theme park were much quieter in the hot months. The museum attracted the fewest visitors, and its figures hardly changed.',
+     'In January, the mall received about 20,000 visitors a day. This figure rose steadily to a peak of 35,000 in July, before it fell back to 24,000 by November. In contrast, the beach and the theme park followed the opposite pattern. Beach visitors dropped sharply from 18,000 to a low of just 3,000 in July, and the theme park also fell, from 14,000 to only 2,000.',
+     'In the second half of the year, both outdoor places recovered. There was a rapid rise in theme park visitors to 19,000 in November, and the park overtook the beach, which reached 17,000. Meanwhile, the museum remained stable, with between 6,000 and 7,000 visitors a day all year.']
+ }
+];
+const STEP_INFO = {
+  watch:['Watch the graph','شاهد الرسم البياني'], notice:['Notice the data','لاحظ البيانات'], plan:['Plan your report','خطّط لتقريرك'],
+  introB:['Introduction','المقدمة'], overF:['Overview','النظرة العامة'], b1F:['Body paragraph 1','الفقرة الأولى'], b2F:['Body paragraph 2','الفقرة الثانية'],
+  write:['Write your paragraphs','اكتب فقراتك'], errors:['Error hunt','ابحث عن الأخطاء'], final:['My final report','تقريري النهائي'],
+  planNotes:['Plan in 3 minutes','خطّط في 3 دقائق'], exam:['Write in 20 minutes','اكتب في 20 دقيقة']
+};
+const SELF=['My introduction paraphrases the question (I did not copy it).','My overview starts with "Overall," and has no numbers.','I grouped the lines in a logical way.','I used both "rose sharply" and "There was a sharp rise in…".','I used from … to, by, a peak of, between … and correctly.','I mentioned peaks, lows or overtaking.','I used linking words (whereas, in contrast, similarly…).','I used the past tense and checked my spelling.'];
+
+/* =================================================================== STATE */
+let S = fresh();
+function fresh(){ return {v:1,name:'',view:'home',cur:0,step:{0:0,1:0,2:0},pts:0,scored:{},showVals:true,
+  w:[0,1,2].map(()=>({done:{},nt:{},no:{},plan:{g:{},f:[],ok:false},ic:{},fv:{},para:{},hints:{},err:{},errT:{},final:'',fin:false,self:[],notes:{},time:1200,order:{}}))}; }
+const $=s=>document.querySelector(s);
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function norm(s){return String(s||'').toLowerCase().replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/\s+/g,' ').trim();}
+function wc(s){const m=String(s||'').trim().match(/\S+/g);return m?m.length:0;}
+function shuf(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function ord(ws,key,n){ if(!ws.order[key]||ws.order[key].length!==n) ws.order[key]=shuf([...Array(n).keys()]); return ws.order[key]; }
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('show'),2200);}
+function give(id,n){ if(S.scored[id]) return; S.scored[id]=1; S.pts+=n; head(); }
+function W_(){return W[S.cur];} function WS(){return S.w[S.cur];}
+function stepDone(wi,key){ return !!S.w[wi].done[key]; }
+function markDone(key){ const ws=WS(); if(!ws.done[key]){ ws.done[key]=true; give(`w${S.cur}-${key}`,20); toast('Step complete! +20 points'); } renderSteps(); head(); }
+function head(){
+  let tot=0,d=0; W.forEach((w,i)=>{ tot+=w.steps.length; d+=w.steps.filter(k=>S.w[i].done[k]).length; });
+  $('#fill').style.width=(d/tot*100)+'%'; $('#pts').textContent=S.pts+' pts';
+}
+
+/* =================================================================== GRAPHS */
+const MARK=['circle','square','triangle','diamond'];
+function marker(shape,x,y,cls,r=4.5){
+  if(shape==='circle')return `<circle class="${cls}" cx="${x}" cy="${y}" r="${r}"/>`;
+  if(shape==='square')return `<rect class="${cls}" x="${x-r}" y="${y-r}" width="${2*r}" height="${2*r}"/>`;
+  if(shape==='triangle')return `<polygon class="${cls}" points="${x},${y-r-1} ${x+r+1},${y+r} ${x-r-1},${y+r}"/>`;
+  return `<polygon class="${cls}" points="${x},${y-r-1.5} ${x+r+1.5},${y} ${x},${y+r+1.5} ${x-r-1.5},${y}"/>`;
+}
+function graphSVG(G,vals){
+  const Wd=660,H=400,L=64,R=26,T=22,B=56,pw=Wd-L-R,ph=H-T-B,n=G.x.length;
+  const X=i=>L+i*(pw/(n-1)), Y=v=>T+ph-(v/G.max)*ph;
+  let s=`<svg class="gsvg" viewBox="0 0 ${Wd} ${H}" role="img" aria-label="${esc(G.title)}">`;
+  for(let v=0;v<=G.max;v+=G.step) s+=`<line class="gl" x1="${L}" x2="${Wd-R}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${L-10}" y="${Y(v)+4}" text-anchor="end" font-size="13">${v}</text>`;
+  s+=`<line class="axis" x1="${L}" y1="${T}" x2="${L}" y2="${T+ph}"/><line class="axis" x1="${L}" y1="${T+ph}" x2="${Wd-R}" y2="${T+ph}"/>`;
+  G.x.forEach((y,i)=>s+=`<text x="${X(i)}" y="${T+ph+22}" text-anchor="middle" font-size="13">${y}</text>`);
+  s+=`<text transform="translate(16 ${T+ph/2}) rotate(-90)" text-anchor="middle" font-size="13" font-weight="700">${esc(G.yLabel)}</text>`;
+  G.series.forEach((se,k)=>{ s+=`<path class="ln s${k}" d="${se.v.map((v,i)=>(i?'L':'M')+X(i)+' '+Y(v)).join(' ')}"/>`; se.v.forEach((v,i)=>{ s+=marker(MARK[k],X(i),Y(v),'s'+k); }); });
+  if(vals){ G.x.forEach((_,i)=>{ const pts=G.series.map((se,k)=>({k,y:Y(se.v[i]),v:se.v[i]})).sort((a,b)=>a.y-b.y); let last=-99;
+    pts.forEach(p=>{ let ly=p.y-9; if(ly<last+13) ly=last+13; last=ly; const dx=i===0?10:(i===n-1?-10:0), anc=i===0?'start':(i===n-1?'end':'middle');
+      s+=`<text class="vl s${p.k}" x="${X(i)+dx}" y="${ly}" text-anchor="${anc}">${p.v}</text>`; }); }); }
+  return s+'</svg>';
+}
+function legendHTML(G){ return '<div class="legend">'+G.series.map((se,k)=>`<span><svg viewBox="0 0 30 14" aria-hidden="true"><line x1="0" x2="30" y1="7" y2="7" class="ln s${k}" style="stroke-width:3"/>${marker(MARK[k],15,7,'s'+k,4)}</svg>${esc(se.name)} <span class="ar">${se.ar}</span></span>`).join('')+'</div>'; }
+function graphCard(G){ return `<div class="card gcard"><h4>${esc(G.title)}</h4><p class="task">${esc(G.task)}</p><div class="gwrap">${graphSVG(G,S.showVals)}</div>${legendHTML(G)}<div class="gtools"><label class="toggle"><input type="checkbox" class="valtoggle" ${S.showVals?'checked':''}> Show the numbers on the graph</label><button type="button" class="zoomB" data-zoom>Enlarge graph ⤢</button></div></div>`; }
+function dataCard(G){ return `<div class="card datacard"><h4 style="font-size:.95rem;margin-bottom:6px">Data card <span class="ar">بطاقة البيانات</span></h4><table><tr><th></th>${G.x.map(x=>`<th>${x}</th>`).join('')}</tr>${G.series.map((se,k)=>`<tr><td><b class="s${k}" style="stroke:none;color:var(--c${k})">${esc(se.name)}</b></td>${se.v.map(v=>`<td>${v}</td>`).join('')}</tr>`).join('')}</table><p class="wc" style="margin:6px 0 0">Units: ${esc(G.yLabel)}</p></div>`; }
+
+/* =================================================================== ANIMATION */
+const AN={raf:0,paused:false,elapsed:0,last:0,cap:-1,geo:null};
+const DRAW=11000, HOLD=3500;
+function crossings(G,pairs){ const out=[]; pairs.forEach(([a,b])=>{ const A=G.series[a].v,B=G.series[b].v; for(let i=0;i<A.length-1;i++){ const d0=A[i]-B[i], d1=A[i+1]-B[i+1]; if(d0<0&&d1>0||d0>0&&d1<0){ const f=d0/(d0-d1); out.push({p:i+f, v:A[i]+(A[i+1]-A[i])*f}); } } }); return out; }
+function buildAnim(w){
+  const box=$('#anSvg'); if(!box) return false; const G=w.G;
+  const Wd=760,H=400,L=60,R=150,T=22,B=44,pw=Wd-L-R,ph=H-T-B,n=G.x.length;
+  const X=i=>L+i*(pw/(n-1)), Y=v=>T+ph-(v/G.max)*ph;
+  let s=`<svg class="gsvg" viewBox="0 0 ${Wd} ${H}" role="img" aria-label="Animated line graph: ${esc(G.title)}">`;
+  for(let v=0;v<=G.max;v+=G.step) s+=`<line class="gl" x1="${L}" x2="${L+pw}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${L-10}" y="${Y(v)+4}" text-anchor="end" font-size="13">${v}</text>`;
+  s+=`<line class="axis" x1="${L}" y1="${T}" x2="${L}" y2="${T+ph}"/><line class="axis" x1="${L}" y1="${T+ph}" x2="${L+pw}" y2="${T+ph}"/>`;
+  G.x.forEach((y,i)=>s+=`<text x="${X(i)}" y="${T+ph+22}" text-anchor="middle" font-size="13">${y}</text>`);
+  s+=`<text transform="translate(14 ${T+ph/2}) rotate(-90)" text-anchor="middle" font-size="12" font-weight="700">${esc(G.yLabel)}</text>`;
+  s+=`<line id="anCursor" class="gl" style="stroke:var(--gold);stroke-width:2;stroke-dasharray:4 4" x1="${L}" x2="${L}" y1="${T}" y2="${T+ph}"/>`;
+  const cr=crossings(G,w.rings); cr.forEach((c,j)=>{ const cx=L+c.p*(pw/(n-1)), cy=Y(c.v); s+=`<g id="anR${j}" style="display:none"><circle class="ring pulse" cx="${cx}" cy="${cy}" r="12"/><circle class="ring" cx="${cx}" cy="${cy}" r="12"/></g>`; });
+  G.series.forEach((se,k)=>{ s+=`<path id="anL${k}" class="ln s${k}" style="stroke-width:4" d=""/><g id="anH${k}">${marker(MARK[k],0,0,'s'+k,6)}</g><text id="anT${k}" class="hl s${k}" x="0" y="0"></text>`; });
+  box.innerHTML=s+'</svg>';
+  AN.geo={X,Y,L,pw,n,cr,w}; return true;
+}
+function drawAnim(p){
+  const g=AN.geo; if(!g) return; const w=g.w, G=w.G;
+  const heads=G.series.map((se,k)=>{ const v=se.v,i=Math.floor(p),f=p-i; let d='';
+    for(let j=0;j<=i&&j<v.length;j++) d+=(j?'L':'M')+g.X(j)+' '+g.Y(v[j])+' ';
+    let hv=v[Math.min(i,v.length-1)]; if(i<v.length-1){ hv=v[i]+(v[i+1]-v[i])*f; d+='L'+(g.X(i)+f*(g.pw/(g.n-1)))+' '+g.Y(hv); }
+    const hx=g.L+p*(g.pw/(g.n-1)), hy=g.Y(hv);
+    document.getElementById('anL'+k).setAttribute('d',d); document.getElementById('anH'+k).setAttribute('transform',`translate(${hx} ${hy})`);
+    return {k,hx,hy,hv}; });
+  let last=-99; heads.slice().sort((a,b)=>a.hy-b.hy).forEach(h=>{ let ly=h.hy+4; if(ly<last+16) ly=last+16; last=ly; const t=document.getElementById('anT'+h.k); t.setAttribute('x',h.hx+12); t.setAttribute('y',ly); t.textContent=`${G.series[h.k].name} ${G.fmt(h.hv)}`; });
+  const cur=document.getElementById('anCursor'); cur.setAttribute('x1',heads[0].hx); cur.setAttribute('x2',heads[0].hx);
+  g.cr.forEach((c,j)=>{ document.getElementById('anR'+j).style.display=p>=c.p?'':'none'; });
+  $('#anYear').textContent = G.numeric ? Math.round(+G.x[0]+p*(G.x[1]-G.x[0])) : G.x[Math.min(G.x.length-1,Math.round(p))];
+  let ci=0; w.caps.forEach((c,j)=>{ if(p>=c[0]) ci=j; });
+  if(ci!==AN.cap){ AN.cap=ci; const el=$('#anCap'), c=w.caps[ci]; el.style.opacity=0; setTimeout(()=>{ el.innerHTML=c[2]; el.style.opacity=1; },180);
+    w.chips.forEach((_,j)=>{ const ph=document.getElementById('ph'+j); if(ph) ph.classList.toggle('lit', j===c[1]); }); }
+}
+function stopAnim(){ if(AN.raf) cancelAnimationFrame(AN.raf); AN.raf=0; }
+function startAnim(){
+  stopAnim(); if(!buildAnim(W_())) return; AN.cap=-1; AN.elapsed=0; AN.paused=false;
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches){ drawAnim(5); return; }
+  AN.last=performance.now();
+  const loop=now=>{ if(!AN.paused) AN.elapsed+=Math.max(0,now-AN.last); AN.last=now; if(AN.elapsed>DRAW+HOLD){AN.elapsed=0;AN.cap=-1;}
+    drawAnim(Math.max(0,Math.min(5,AN.elapsed/DRAW*5))); AN.raf=requestAnimationFrame(loop); };
+  AN.raf=requestAnimationFrame(loop);
+}
+
+/* =================================================================== HOME */
+function thumb(G){ const Wd=300,H=110,L=8,R=8,T=8,B=8,pw=Wd-L-R,ph=H-T-B,n=G.x.length; const X=i=>L+i*pw/(n-1), Y=v=>T+ph-v/G.max*ph;
+  return `<svg viewBox="0 0 ${Wd} ${H}" aria-hidden="true" class="gsvg">${G.series.map((se,k)=>`<path class="ln s${k}" d="${se.v.map((v,i)=>(i?'L':'M')+X(i)+' '+Y(v)).join(' ')}"/>`).join('')}</svg>`; }
+function renderHome(){
+  stopAnim(); S.view='home';
+  const allDone=W.every((w,i)=>S.w[i].fin);
+  $('#main').innerHTML=`<div class="stack">
+  <div class="card hero"><span class="eyebrow">Your writing workshop</span><h2>Write three line graph reports, step by step</h2>
+   <p>You already know the structure of a Task 1 report and the trend sentences. Now you will <b>use</b> them. Each workshop gives you a new graph. The help gets smaller each time, so by Workshop 3 you write the whole report on your own, like in the exam.</p>
+   <p class="ar">في كل ورشة رسم بياني جديد. المساعدة تقلّ في كل مرة، وفي الورشة الثالثة تكتب التقرير بمفردك كما في الامتحان.</p>
+   <label for="nm"><b>Your name</b></label><br><input id="nm" class="name-in" value="${esc(S.name)}" placeholder="Type your full name"></div>
+  <div class="wks">${W.map((w,i)=>{const ws=S.w[i], d=w.steps.filter(k=>ws.done[k]).length;
+    return `<button type="button" class="wk ${ws.fin?'done':''}" data-open="${i}"><span class="eyebrow">${w.name} · ${w.sub} <span class="ar">${w.ar}</span></span>
+     <span class="lvl" aria-label="Support level ${w.level} of 3">${[1,2,3].map(l=>`<i class="${l<=w.level?'on':''}"></i>`).join('')}</span>
+     <h3>${esc(w.topic)}</h3>${thumb(w.G)}<span class="meta">${esc(w.about)}</span>
+     <span class="st">${ws.fin?'✓ Report finished':d?`${d} of ${w.steps.length} steps done · Continue →`:'Start →'}</span></button>`;}).join('')}</div>
+  <div class="card"><h3 style="font-size:1.05rem;margin-bottom:10px">How each workshop works <span class="ar">كيف تعمل الورشة</span></h3><div class="how">
+   <div><b>Watch</b><br>See the lines move and hear the key language.</div><div><b>Notice</b><br>Find the most important data.</div><div><b>Plan</b><br>Group the lines and choose your overview.</div><div><b>Write</b><br>Build each paragraph with the target language.</div><div><b>Check</b><br>Hunt for common mistakes, then finish your report.</div></div></div>
+  <div class="cert ${allDone?'':'locked'}"><span class="eyebrow">Certificate of achievement</span><h2>Line Graph Report Workshop</h2><p>This certifies that</p><div class="who" id="certName">${esc(S.name||'Your name')}</div><p>has written three complete IELTS Task 1 line graph reports.</p><p class="wc">${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})} · Designed by: Nazila Motahari</p>
+   ${allDone?'<button class="btn" type="button" id="printCert">Print / save certificate</button>':'<p><b>Locked.</b> Finish the report in all three workshops.</p>'}</div></div>`;
+  head(); window.scrollTo({top:0});
+}
+
+/* =================================================================== WORKSHOP SHELL */
+function openW(i){ S.cur=i; S.view='w'; renderW(); }
+function renderSteps(){ const w=W_(), ws=WS(), cur=S.step[S.cur]; const el=$('#stepNav'); if(!el) return;
+  el.innerHTML=w.steps.map((k,j)=>`<button type="button" class="chip ${j===cur?'on':''} ${ws.done[k]?'done':''}" data-step="${j}"><span class="n">${ws.done[k]?'✓':j+1}</span>${STEP_INFO[k][0]}</button>`).join(''); }
+function renderW(){
+  stopAnim(); const w=W_(), k=w.steps[S.step[S.cur]];
+  $('#main').innerHTML=`<div class="wtop"><div><span class="eyebrow">${w.name} · ${w.sub}</span><h2>${esc(w.topic)}</h2></div><button class="btn ghost" type="button" data-home>← All workshops</button></div>
+   <nav class="steps" id="stepNav" aria-label="Steps"></nav><div id="stepBody"></div>`;
+  renderSteps(); renderStep(k); head(); window.scrollTo({top:0,behavior:'smooth'});
+}
+function goStep(j){ S.step[S.cur]=j; renderW(); }
+function nextBtn(label){ const w=W_(), j=S.step[S.cur]; if(j>=w.steps.length-1) return ''; return `<div class="row" style="margin-top:14px"><button class="btn sec" type="button" data-next>${label||'Next step →'}</button></div>`; }
+function intro(k,html){ return `<div class="card intro"><span class="eyebrow">Step ${S.step[S.cur]+1} of ${W_().steps.length}</span><h3>${STEP_INFO[k][0]}</h3><p class="ar">${STEP_INFO[k][1]}</p>${html}</div>`; }
+function two(left,right){ return `<div class="layout two"><div class="side stack">${left}</div><div class="stack">${right}</div></div>`; }
+
+function renderStep(k){
+  const w=W_(), ws=WS(), B=$('#stepBody');
+  if(k==='watch'){
+    B.innerHTML=`<div class="stack">${intro(k,'<p>Watch the lines move and read the language that describes each change. Use these phrases in your report.</p>')}
+     <div class="card"><div class="row" style="justify-content:space-between"><div class="yr"><small>${w.G.numeric?'Year':'Month'}</small><span id="anYear">${w.G.x[0]}</span></div><div class="row"><button class="btn ghost" type="button" data-an="pause" id="anPause">Pause</button><button class="btn ghost" type="button" data-an="replay">Replay</button></div></div>
+     <div id="anSvg"></div>${legendHTML(w.G)}<div class="cap" id="anCap" aria-live="polite"></div>
+     <div class="phr">${w.chips.map((c,j)=>`<span class="ph" id="ph${j}">${c[0]}<span class="ar">${c[1]}</span></span>`).join('')}</div>
+     <div class="row" style="margin-top:14px"><button class="btn" type="button" data-watched>I'm ready: start the workshop →</button></div></div></div>`;
+    startAnim(); return;
+  }
+  if(k==='notice'){
+    const items=w.notice.map((q,i)=>{ const ok=ws.nt[i]; let body;
+      if(q.num) body=`<div class="row"><input class="numin" type="number" id="nq${i}" value="${esc(ws.no[i]??'')}" aria-label="Your answer" ${ok?'disabled':''}><span>${esc(q.unit)}</span><button class="btn" type="button" data-num="${i}" ${ok?'disabled':''}>Check</button></div>`;
+      else { const o=ord(ws,'n'+i,q.o.length); body=`<div class="opts">${o.map(j=>`<button type="button" class="opt ${ok&&j===0?'right':''}" data-nq="${i}" data-o="${j}" ${ok?'disabled':''}>${esc(q.o[j])}</button>`).join('')}</div>`; }
+      return `<div class="item ${ok?'ok':''}" id="ni${i}"><h4><span class="qn">${i+1}</span>${esc(q.q)}</h4>${body}<div class="fb ${ok?'good':''}" id="nf${i}">${ok?esc(q.w):''}</div></div>`; }).join('');
+    B.innerHTML=intro(k,'<p>Before you write, find the most important information. Good writers look for the <b>highest and lowest</b> lines, <b>peaks</b>, <b>lows</b> and where lines <b>cross</b>.</p>')+two(graphCard(w.G), items+nextBtn());
+    return;
+  }
+  if(k==='plan'){
+    const p=ws.plan, fo=ord(ws,'feat',w.feats.length);
+    B.innerHTML=intro(k,'<p>A Band 6 report groups lines that behave in a similar way. It also has an overview with the <b>two biggest features</b> and <b>no numbers</b>.</p>')+two(graphCard(w.G),
+     `<div class="item ${p.ok?'ok':''}" id="planBox"><h4><span class="qn">A</span>Group the lines into two body paragraphs</h4>
+       ${w.G.series.map((se,k2)=>`<div class="lineRow"><span class="sw"><svg viewBox="0 0 30 14" width="30" height="14" aria-hidden="true"><line x1="0" x2="30" y1="7" y2="7" class="ln s${k2}" style="stroke-width:3"/>${marker(MARK[k2],15,7,'s'+k2,4)}</svg>${esc(se.name)}</span>
+       <select class="grp" data-g="${k2}" aria-label="Paragraph for ${esc(se.name)}"><option value="">choose…</option><option value="1" ${p.g[k2]==='1'?'selected':''}>Body 1</option><option value="2" ${p.g[k2]==='2'?'selected':''}>Body 2</option></select></div>`).join('')}
+       <h4 style="margin-top:14px"><span class="qn">B</span>Tick the TWO best features for your overview</h4>
+       ${fo.map(j=>`<label class="feat" id="ft${j}"><input type="checkbox" data-f="${j}" ${p.f.includes(j)?'checked':''}><span>${esc(w.feats[j][0])}</span></label>`).join('')}
+       <div class="row" style="margin-top:10px"><button class="btn" type="button" data-checkplan>Check my plan</button></div><div class="fb" id="planFb">${p.ok?'Great plan! '+esc(w.groupWhy):''}</div></div>`+nextBtn());
+    if(p.ok) $('#planFb').className='fb good';
+    return;
+  }
+  if(k==='introB'){
+    const chunks=w.introChunks.map((c,i)=>{ const o=ord(ws,'ic'+i,c.o.length), sel=ws.ic[i];
+      return `<div class="chunk"><div class="orig">Question: <b>${esc(c.orig)}</b></div><div class="opts">${o.map(j=>`<button type="button" class="opt ${sel===j?(j===0?'right':'wrong'):''}" data-ic="${i}" data-o="${j}">${esc(c.o[j])}</button>`).join('')}</div><div class="fb ${sel==null?'':sel===0?'good':'bad'}" id="icf${i}">${sel==null?'':esc(c.why[sel])}</div></div>`; }).join('');
+    B.innerHTML=intro(k,'<p>Your introduction says what the graph shows <b>in your own words</b>. For each part of the question, choose the best paraphrase.</p>')+two(graphCard(w.G),
+     `<div class="item"><div class="chunks">${chunks}</div></div>${paraBox('intro','Your introduction',20,'Choose all four parts above, then edit your introduction here if you like.')}`+nextBtn());
+    updPara('intro'); return;
+  }
+  if(k==='overF'||k==='b1F'||k==='b2F'){
+    const key={overF:'over',b1F:'b1',b2F:'b2'}[k], F=w[k];
+    const txt={overF:'<p>Complete the overview frame. Use words, <b>not numbers</b>. Then press <b>Add to my report</b> and make any changes you like.</p>',
+      b1F:'<p>Complete the sentences about the first group of lines. Read the numbers from the graph and choose the right trend words. Each box tells you if it is correct.</p>',
+      b2F:'<p>Now the second group. This paragraph practises the <b>"There was a + adjective + noun"</b> pattern, <b>overtook</b> and <b>levelled off</b>.</p>'}[k];
+    let n=0; const html=F.map(t=>{ if(typeof t==='string') return esc(t); const id=k+'-'+(n++); const v=ws.fv[id]??''; const size=Math.max(4,(t.num!=null?String(t.num).length+1:Math.min(16,Math.max(...t.a.slice(0,3).map(a=>a.length))+1)));
+      return `<input type="text" data-fr="${id}" value="${esc(v)}" style="width:${size+1}ch" aria-label="${esc(t.h||'blank')}" class="${frameOk(t,v)===true?'ok':''}">`; }).join('');
+    B.innerHTML=intro(k,txt)+two(graphCard(w.G),
+     `<div class="item"><h4>Sentence frame <span class="ar">إطار الجملة</span></h4><div class="frame">${html}</div>
+      <div class="row" style="margin-top:10px"><button class="btn" type="button" data-checkframe="${k}">Check</button><button class="btn sec" type="button" data-addframe="${k}">Add to my report</button></div><div class="fb" id="frFb"></div></div>
+      ${paraBox(key,{over:'Your overview',b1:'Your body paragraph 1',b2:'Your body paragraph 2'}[key],key==='over'?20:40)}`+nextBtn());
+    updPara(key); return;
+  }
+  if(k==='write'){
+    const boxes=w.write.map(b=>{ const sh=ws.hints[b.k]||0;
+      return paraBox(b.k,`${b.label} <span class="ar">${b.ar}</span>`,b.min,'',`<div class="hints" id="hn-${b.k}">${b.hints.slice(0,sh).map((h,j)=>`<div class="hint"><b>Hint ${j+1}:</b> ${esc(h)}</div>`).join('')}</div><div class="row" style="margin-top:8px"><button class="btn gold" type="button" data-hint="${b.k}" ${sh>=b.hints.length?'disabled':''}>${sh>=b.hints.length?'No more hints':`Show a hint (${b.hints.length-sh} left)`}</button></div>`); }).join('');
+    B.innerHTML=intro(k,'<p>Write all four paragraphs yourself. The checklist under each box ticks itself when you use the target language. Use a hint only when you are stuck.</p><p class="ar">القائمة تتحقق تلقائياً عندما تستخدم اللغة المطلوبة.</p>')+two(graphCard(w.G)+dataCard(w.G), boxes+nextBtn());
+    w.write.forEach(b=>updPara(b.k)); return;
+  }
+  if(k==='errors'){
+    const items=w.errors.map((e,i)=>{ const f=ws.err[i];
+      return `<div class="item ${f?'ok':''}"><h4><span class="qn">${i+1}</span>Tap the part with the mistake.</h4><div class="hunt">${e.c.map((c,j)=>`<button type="button" class="hc ${f&&j===e.i?'found':''}" data-hunt="${i}" data-j="${j}" ${f?'disabled':''}>${esc(c)}</button>`).join('')}</div>
+       <div class="fb ${f?'good':''}" id="ef${i}">${f?`<span class="fix">✓ ${esc(e.fix)}</span>: ${esc(e.why)}`:''}</div></div>`; }).join('');
+    B.innerHTML=intro(k,'<p>These are mistakes that students often make in Task 1. Find the mistake in each sentence. Then check that <b>your</b> report does not have the same mistake.</p><p class="ar">هذه أخطاء شائعة. ابحث عنها، ثم تأكد أن تقريرك خالٍ منها.</p>')+`<div class="stack">${items}</div>`+nextBtn();
+    return;
+  }
+  if(k==='final'){
+    if(!ws.final.trim()) ws.final=assemble(ws);
+    B.innerHTML=intro(k,'<p>Here is your report, built from your paragraphs. Read it carefully, improve it, and check the list. When you are happy, press <b>I have finished</b> to see a model answer.</p>')+two(graphCard(w.G),
+     finalBox(ws)+selfBox(ws)+`<div class="card"><div class="row"><button class="btn" type="button" data-finish>I have finished: show the model</button><span class="wc" id="finNote"></span></div><div id="modelBox"></div></div>`);
+    updFinal(); return;
+  }
+  if(k==='planNotes'){
+    B.innerHTML=intro(k,'<p>In the exam, spend about 3 minutes planning. Answer these questions in a few words. Notes are fine: you do not need full sentences.</p>')+two(graphCard(w.G),
+     w.planQs.map((q,i)=>`<div class="item"><h4><span class="qn">${i+1}</span>${esc(q[0])}</h4><p class="ar" style="margin:0 0 6px">${q[1]}</p><textarea data-note="${i}" style="min-height:64px" aria-label="${esc(q[0])}">${esc(ws.notes[i]||'')}</textarea></div>`).join('')+
+     `<div class="row"><button class="btn" type="button" data-notesdone>My plan is ready</button></div><div class="fb" id="notesFb"></div>`+nextBtn());
+    return;
+  }
+  if(k==='exam'){
+    B.innerHTML=intro(k,'<p>Write the full report: introduction, overview and two body paragraphs. Aim for <b>at least 150 words</b> in <b>20 minutes</b>. The checklist ticks itself as you write.</p><p class="ar">اكتب 150 كلمة على الأقل في 20 دقيقة.</p>')+two(
+     graphCard(w.G)+`<div class="card"><h4 style="font-size:.95rem">My plan</h4>${w.planQs.map((q,i)=>`<p style="margin:4px 0;font-size:.88rem"><b>${i+1}.</b> ${esc(ws.notes[i]||'—')}</p>`).join('')}</div>`,
+     `<div class="card"><div class="row" style="justify-content:space-between"><span class="timer" id="timer">20:00</span><span class="row"><button class="btn" type="button" data-timer id="tBtn">Start timer</button><button class="btn ghost" type="button" data-treset>Reset</button></span></div></div>`+
+     finalBox(ws,'Start writing here. Leave an empty line between paragraphs.')+selfBox(ws)+`<div class="card"><div class="row"><button class="btn" type="button" data-finish>I have finished: show the model</button><span class="wc" id="finNote"></span></div><div id="modelBox"></div></div>`);
+    drawTimer(); updFinal(); return;
+  }
+}
+
+/* ---------- paragraph boxes + missions ---------- */
+function missionsFor(key,t){
+  const n=norm(t), figs=(n.match(RE.fig)||[]).length;
+  if(key==='intro') return [['Uses a reporting verb (illustrates, compares…)','فعل وصفي',RE.report.test(n)],['Gives the time period','الفترة الزمنية',/\d{4}|year|january|months/.test(n)],['Does not copy "the graph below"','لا تنسخ السؤال',n.length>0&&!/below/.test(n)]];
+  if(key==='over') return [['Starts with "Overall"','ابدأ بـ Overall',/^(overall|in general)\b/.test(n)],['No numbers','بدون أرقام',n.length>0&&!/\d/.test(n)],['Two main features (two sentences)','ميزتان رئيسيتان',(n.match(/[.!?](\s|$)/g)||[]).length>=2]];
+  return [['At least two figures','رقمان على الأقل',figs>=2],['A trend sentence: verb + adverb OR "There was a…"','جملة اتجاه',RE.p1.test(n)||RE.p2.test(n)],['A key feature: peak, low, overtook, levelled off…','نقطة رئيسية',(n.match(RE.key)||[]).length>=1],['A linking word: whereas, in contrast, similarly…','أداة ربط',(n.match(RE.link)||[]).length>=1]];
+}
+function paraBox(key,label,min,ph,extra=''){
+  const ws=WS(); return `<div class="item" id="pb-${key}"><div class="plabel"><h4>${label}</h4><span class="wc" id="wc-${key}">0 words</span></div>
+   <textarea data-para="${key}" placeholder="${esc(ph||'')}" aria-label="${esc(String(label).replace(/<[^>]+>/g,''))}">${esc(ws.para[key]||'')}</textarea><ul class="mis" id="mi-${key}"></ul>${extra}</div>`;
+}
+function updPara(key){
+  const ws=WS(), t=ws.para[key]||'', el=$('#mi-'+key); if(!el) return;
+  const m=missionsFor(key,t), min=(key==='intro'||key==='over')?20:(W_().write?(W_().write.find(b=>b.k===key)||{}).min||40:40);
+  const n=wc(t); m.push([`${min} words or more`,`${min} كلمة أو أكثر`,n>=min]);
+  el.innerHTML=m.map(([l,a,y])=>`<li class="${y?'yes':''}"><span class="d">${y?'✓':''}</span><span>${esc(l)}<span class="ar">${a}</span></span></li>`).join('');
+  $('#wc-'+key).textContent=n+' words';
+  const all=m.every(x=>x[2]); $('#pb-'+key).classList.toggle('ok',all);
+  const w=W_(), stepKey=w.steps[S.step[S.cur]];
+  if(stepKey==='write'){ if(w.write.every(b=>missionsFor(b.k,ws.para[b.k]||'').every(x=>x[2])&&wc(ws.para[b.k])>=b.min)) markDone('write'); }
+  else if(all){ const map={intro:'introB',over:'overF',b1:'b1F',b2:'b2F'}; if(map[key]===stepKey) markDone(stepKey); }
+}
+
+/* ---------- frames ---------- */
+function frameOk(t,v){ const n=norm(v).replace(/%/g,'').replace(/[.,]$/,''); if(!n) return null; if(t.num!=null) return Number(n.replace(/,/g,''))===t.num; return t.a.some(a=>n.includes(a)); }
+function checkFrame(k){
+  const w=W_(), ws=WS(); let n=0, wrong=[], empty=0;
+  w[k].forEach(t=>{ if(typeof t==='string') return; const id=k+'-'+(n++), v=ws.fv[id]||'', ok=frameOk(t,v), inp=document.querySelector(`[data-fr="${id}"]`);
+    inp.classList.toggle('ok',ok===true); inp.classList.toggle('no',ok===false); if(ok===null) empty++; if(ok===false) wrong.push(t.h); });
+  const fb=$('#frFb');
+  if(!wrong.length&&!empty){ fb.className='fb good'; fb.innerHTML='<b>All correct!</b> Press <b>Add to my report</b>.'; give(`w${S.cur}-${k}-frame`,30); return true; }
+  fb.className='fb tip'; fb.innerHTML=(wrong.length?'<b>Check the red boxes:</b><ul style="margin:4px 0 0;padding-left:20px">'+[...new Set(wrong)].map(h=>`<li>${esc(h)}</li>`).join('')+'</ul>':'')+(empty?`<p style="margin:4px 0 0">${empty} box${empty>1?'es are':' is'} still empty.</p>`:''); return false;
+}
+function composeFrame(k){ const w=W_(), ws=WS(); let n=0, out='';
+  w[k].forEach(t=>{ if(typeof t==='string'){ out+=t; return; } let v=(ws.fv[k+'-'+(n++)]||'').trim(); out+=v; });
+  return out.replace(/(^|\.\s+)([a-z])/g,(m,a,b)=>a+b.toUpperCase()).replace(/%%/g,'%').replace(/\s+/g,' ').replace(/\s([.,])/g,'$1').trim(); }
+
+/* ---------- final ---------- */
+function assemble(ws){ return ['intro','over','b1','b2'].map(k=>(ws.para[k]||'').trim()).filter(Boolean).join('\n\n'); }
+function finalBox(ws,ph){ return `<div class="item" id="finBox"><div class="plabel"><h4>My report <span class="ar">تقريري</span></h4><span class="wc" id="wcF">0 words</span></div>
+  <textarea class="big" data-final placeholder="${esc(ph||'')}" aria-label="My report">${esc(ws.final)}</textarea>
+  ${W_().steps.includes('final')?'<div class="row" style="margin-top:6px"><button class="btn ghost" type="button" data-rebuild>Rebuild from my paragraphs</button></div>':''}<ul class="mis" id="miF"></ul></div>`; }
+function selfBox(ws){ return `<div class="item self"><h4>Check your own work <span class="ar">راجع عملك</span></h4>${SELF.map((s,j)=>`<label><input type="checkbox" data-self="${j}" ${ws.self[j]?'checked':''}> ${esc(s)}</label>`).join('')}</div>`; }
+function finalMissions(t){ const n=norm(t), paras=t.split(/\n\s*\n/).filter(p=>p.trim()).length;
+  return [['Four paragraphs (leave an empty line between them)','أربع فقرات',paras>=4],['Introduction with a reporting verb','مقدمة بفعل وصفي',RE.report.test(n)],['An overview starting with "Overall"','نظرة عامة تبدأ بـ Overall',/\boverall\b/.test(n)],['Pattern 1: verb + adverb (rose sharply)','فعل + ظرف',RE.p1.test(n)],['Pattern 2: There was a + adjective + noun','There was a + صفة + اسم',RE.p2.test(n)],['At least two key features (peak, low, overtook…)','نقطتان رئيسيتان',(n.match(RE.key)||[]).length>=2],['At least two linking words','أداتا ربط',(n.match(RE.link)||[]).length>=2],['150 words or more','150 كلمة أو أكثر',wc(t)>=150]]; }
+function updFinal(){ const ws=WS(), t=ws.final||'', el=$('#miF'); if(!el) return;
+  el.innerHTML=finalMissions(t).map(([l,a,y])=>`<li class="${y?'yes':''}"><span class="d">${y?'✓':''}</span><span>${esc(l)}<span class="ar">${a}</span></span></li>`).join('');
+  const n=wc(t); $('#wcF').textContent=n+' words'+(n>=150?' ✓':' / 150');
+  const b=document.querySelector('[data-finish]'); if(b){ b.disabled=n<120&&!ws.fin; $('#finNote').textContent=ws.fin?'Finished. Well done!':(n<120?'Write at least 120 words first.':''); }
+  if(ws.fin) showModel();
+}
+function showModel(){ const w=W_(); $('#modelBox').innerHTML=`<div class="model"><b>Model answer (${wc(w.model.join(' '))} words)</b>${w.model.map((p,j)=>`<p><b>${['Introduction','Overview','Body 1','Body 2'][j]}:</b> ${esc(p)}</p>`).join('')}<p style="margin-top:8px"><b>Compare:</b> Did you mention the same key features? Did you group the lines in the same way, or in another logical way? Which useful phrases can you borrow next time?</p></div>`; }
+let tick=null;
+function drawTimer(){ const el=$('#timer'); if(!el) return; const t=WS().time, m=Math.floor(t/60), s=t%60; el.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; el.classList.toggle('low',t<=120); }
+function stopTimer(){ if(tick){clearInterval(tick);tick=null;} const b=$('#tBtn'); if(b) b.textContent='Start timer'; }
+
+/* =================================================================== EVENTS */
+document.addEventListener('click',e=>{
+  const t=e.target, c=x=>t.closest(x);
+  if(c('[data-zoom]')){ openZoom(); return; }
+  if(c('[data-zclose]')||t.id==='zoom'){ closeZoom(); return; }
+  if(c('#homeB')||c('[data-home]')){ stopTimer(); renderHome(); return; }
+  const op=c('[data-open]'); if(op){ openW(+op.dataset.open); return; }
+  const st=c('[data-step]'); if(st){ stopTimer(); goStep(+st.dataset.step); return; }
+  if(c('[data-next]')){ stopTimer(); goStep(S.step[S.cur]+1); return; }
+  const ws=WS?WS():null, w=W_();
+  const an=c('[data-an]'); if(an){ if(an.dataset.an==='pause'){ AN.paused=!AN.paused; an.textContent=AN.paused?'Play':'Pause'; } else { AN.elapsed=0; AN.cap=-1; AN.paused=false; const pb=$('#anPause'); if(pb) pb.textContent='Pause'; } return; }
+  if(c('[data-watched]')){ markDone('watch'); goStep(1); return; }
+  const nq=c('[data-nq]'); if(nq&&!nq.disabled){ const i=+nq.dataset.nq, o=+nq.dataset.o, q=w.notice[i], fb=$('#nf'+i);
+    if(o===0){ ws.nt[i]=true; give(`w${S.cur}-n${i}`,10); nq.classList.add('right'); document.querySelectorAll(`[data-nq="${i}"]`).forEach(b=>b.disabled=true); fb.className='fb good'; fb.textContent=q.w; $('#ni'+i).classList.add('ok'); }
+    else { nq.classList.add('wrong'); nq.disabled=true; fb.className='fb bad'; fb.textContent='Not quite. Look at the graph again.'; S.scored[`w${S.cur}-n${i}`]=S.scored[`w${S.cur}-n${i}`]||0; give(`w${S.cur}-n${i}`,0); }
+    if(w.notice.every((_,j)=>ws.nt[j])) markDone('notice'); return; }
+  const nb=c('[data-num]'); if(nb){ const i=+nb.dataset.num, q=w.notice[i], v=$('#nq'+i).value, fb=$('#nf'+i); ws.no[i]=v;
+    if(Number(v)===q.a){ ws.nt[i]=true; give(`w${S.cur}-n${i}`,10); fb.className='fb good'; fb.textContent=q.w; $('#ni'+i).classList.add('ok'); $('#nq'+i).disabled=true; nb.disabled=true; }
+    else { give(`w${S.cur}-n${i}`,0); fb.className='fb bad'; fb.textContent='Not quite. Read the two points on the graph and calculate again.'; }
+    if(w.notice.every((_,j)=>ws.nt[j])) markDone('notice'); return; }
+  if(c('[data-checkplan]')){ const p=ws.plan, g1=[0,1,2,3].filter(k=>p.g[k]==='1').sort().join(), g2=[0,1,2,3].filter(k=>p.g[k]==='2').sort().join();
+    const okG=w.groups.some(([a,b])=>(g1===a.join()&&g2===b.join())||(g1===b.join()&&g2===a.join()));
+    const fb=$('#planFb'), msgs=[]; if(Object.keys(p.g).filter(k=>p.g[k]).length<4) msgs.push('Put every line into Body 1 or Body 2.'); else if(!okG) msgs.push('Try another grouping: put lines together that behave in a similar way or that cross each other.');
+    w.feats.forEach((f,j)=>{ const lab=$('#ft'+j); lab.classList.remove('ok','no'); if(p.f.includes(j)) lab.classList.add(f[1]?'ok':'no'); });
+    const okF=p.f.length===2&&p.f.every(j=>w.feats[j][1]); if(p.f.length!==2) msgs.push('Tick exactly two overview features.'); else if(!okF) p.f.filter(j=>!w.feats[j][1]).forEach(j=>msgs.push(w.feats[j][2]));
+    if(okG&&okF){ p.ok=true; fb.className='fb good'; fb.textContent='Great plan! '+w.groupWhy; $('#planBox').classList.add('ok'); markDone('plan'); }
+    else { give(`w${S.cur}-plan1st`,0); fb.className='fb tip'; fb.innerHTML=msgs.map(esc).join('<br>'); }
+    return; }
+  const ic=c('[data-ic]'); if(ic){ const i=+ic.dataset.ic, o=+ic.dataset.o, ch=w.introChunks[i]; ws.ic[i]=o;
+    document.querySelectorAll(`[data-ic="${i}"]`).forEach(b=>{ b.classList.remove('right','wrong'); }); ic.classList.add(o===0?'right':'wrong');
+    const fb=$('#icf'+i); fb.className='fb '+(o===0?'good':'bad'); fb.textContent=ch.why[o];
+    if(w.introChunks.every((_,j)=>ws.ic[j]===0)){ ws.para.intro=w.introChunks.map(c2=>c2.o[0]).join(' ').replace(/^./,m=>m.toUpperCase()); document.querySelector('[data-para="intro"]').value=ws.para.intro; give(`w${S.cur}-introB`,0); updPara('intro'); toast('Your introduction is ready. You can edit it.'); }
+    return; }
+  const cf=c('[data-checkframe]'); if(cf){ checkFrame(cf.dataset.checkframe); return; }
+  const af=c('[data-addframe]'); if(af){ const k=af.dataset.addframe, key={overF:'over',b1F:'b1',b2F:'b2'}[k]; if(!checkFrame(k)){ toast('Fix the red or empty boxes first.'); return; }
+    ws.para[key]=composeFrame(k); document.querySelector(`[data-para="${key}"]`).value=ws.para[key]; updPara(key); toast('Added to your report. You can edit it.'); return; }
+  const hb=c('[data-hint]'); if(hb){ const k=hb.dataset.hint, b=w.write.find(x=>x.k===k); ws.hints[k]=Math.min((ws.hints[k]||0)+1,b.hints.length); const sh=ws.hints[k];
+    $('#hn-'+k).innerHTML=b.hints.slice(0,sh).map((h,j)=>`<div class="hint"><b>Hint ${j+1}:</b> ${esc(h)}</div>`).join(''); hb.disabled=sh>=b.hints.length; hb.textContent=sh>=b.hints.length?'No more hints':`Show a hint (${b.hints.length-sh} left)`; return; }
+  const hu=c('[data-hunt]'); if(hu&&!hu.disabled){ const i=+hu.dataset.hunt, j=+hu.dataset.j, er=w.errors[i], fb=$('#ef'+i);
+    ws.errT[i]=(ws.errT[i]||0)+1;
+    if(j===er.i){ ws.err[i]=true; give(`w${S.cur}-e${i}`,ws.errT[i]===1?10:5); hu.classList.add('found'); document.querySelectorAll(`[data-hunt="${i}"]`).forEach(b=>b.disabled=true); fb.className='fb good'; fb.innerHTML=`<span class="fix">✓ ${esc(er.fix)}</span>: ${esc(er.why)}`; hu.closest('.item').classList.add('ok'); if(w.errors.every((_,k)=>ws.err[k])) markDone('errors'); }
+    else { hu.classList.remove('miss'); void hu.offsetWidth; hu.classList.add('miss'); fb.className='fb tip'; fb.textContent='That part is correct. Look again.'; }
+    return; }
+  if(c('[data-rebuild]')){ ws.final=assemble(ws); document.querySelector('[data-final]').value=ws.final; updFinal(); toast('Rebuilt from your paragraphs.'); return; }
+  if(c('[data-finish]')){ if(wc(ws.final)<120) return; if(!ws.fin){ ws.fin=true; stopTimer(); markDone(w.steps[w.steps.length-1]); give(`w${S.cur}-fin`,50); confetti(); toast('Report finished! +50 points'); } updFinal(); return; }
+  if(c('[data-notesdone]')){ const ok=w.planQs.every((_,i)=>wc(ws.notes[i])>=2); const fb=$('#notesFb'); if(ok){ fb.className='fb good'; fb.textContent='Plan ready. Now write!'; markDone('planNotes'); } else { fb.className='fb tip'; fb.textContent='Write a few words for every question.'; } return; }
+  if(c('[data-timer]')){ const b=$('#tBtn'); if(tick){ stopTimer(); b.textContent='Resume timer'; return; } if(ws.time<=0) ws.time=1200; b.textContent='Pause timer';
+    tick=setInterval(()=>{ ws.time--; drawTimer(); if(ws.time<=0){ stopTimer(); toast('Time is up! Finish your last sentence.'); } },1000); return; }
+  if(c('[data-treset]')){ stopTimer(); ws.time=1200; drawTimer(); return; }
+  if(c('#printCert')){ $('#printArea').innerHTML=`<div class="pc"><p style="letter-spacing:.2em;text-transform:uppercase">Certificate of achievement</p><h1>Line Graph Report Workshop</h1><p>This certifies that</p><h1 style="color:#b5482a">${esc(S.name)}</h1><p>has written three complete IELTS Task 1 line graph reports.</p><p>${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</p><p>Designed by: Nazila Motahari</p></div>`; setTimeout(()=>window.print(),200); return; }
+});
+document.addEventListener('change',e=>{
+  const t=e.target, ws=WS();
+  if(t.matches('select.grp')){ ws.plan.g[t.dataset.g]=t.value; }
+  else if(t.matches('[data-f]')){ const j=+t.dataset.f, f=ws.plan.f; if(t.checked){ if(!f.includes(j)) f.push(j); } else ws.plan.f=f.filter(x=>x!==j); }
+  else if(t.matches('[data-self]')){ ws.self[+t.dataset.self]=t.checked; }
+  else if(t.matches('.valtoggle')){ S.showVals=t.checked; document.querySelectorAll('.gwrap').forEach(g=>g.innerHTML=graphSVG(W_().G,S.showVals)); document.querySelectorAll('.valtoggle').forEach(x=>x.checked=S.showVals); }
+});
+document.addEventListener('input',e=>{
+  const t=e.target; if(t.id==='nm'){ S.name=t.value; const c=$('#certName'); if(c) c.textContent=t.value||'Your name'; return; }
+  const ws=WS();
+  if(t.matches('[data-para]')){ ws.para[t.dataset.para]=t.value; updPara(t.dataset.para); }
+  else if(t.matches('[data-fr]')){ ws.fv[t.dataset.fr]=t.value; t.classList.remove('ok','no'); }
+  else if(t.matches('[data-final]')){ ws.final=t.value; updFinal(); }
+  else if(t.matches('[data-note]')){ ws.notes[+t.dataset.note]=t.value; }
+});
+
+/* save / load / pdf */
+$('#saveB').onclick=()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify({app:'line-graph-report-workshop',saved:new Date().toISOString(),S},null,1)],{type:'application/json'})); a.download='report-workshop-'+(S.name||'progress').replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'.json'; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500); toast('Progress saved as a file.'); };
+$('#loadB').onclick=()=>$('#fileIn').click();
+$('#fileIn').onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(r.result); if(d.app!=='line-graph-report-workshop') throw 0; const base=fresh(); S=Object.assign(base,d.S); S.w=base.w.map((b,i)=>Object.assign(b,(d.S.w||[])[i]||{})); stopTimer(); S.view==='w'?renderW():renderHome(); toast('Welcome back!'); }catch(_){ toast('That is not a Report Workshop save file.'); } }; r.readAsText(f); e.target.value=''; };
+$('#pdfB').onclick=()=>{ const parts=W.map((w,i)=>{ const ws=S.w[i], txt=(ws.final||assemble(ws)).trim(); return `<h2${i?' class="pb"':''}>${w.name}: ${esc(w.G.title)}</h2><p><i>${esc(w.G.task)}</i></p><p>${wc(txt)} words${ws.fin?' · finished':''}</p><div class="p">${esc(txt||'(not written yet)')}</div>${ws.fin?`<h3>Model answer</h3>${w.model.map(p=>`<p>${esc(p)}</p>`).join('')}`:''}`; }).join('');
+  $('#printArea').innerHTML=`<h1>Line Graph Report Workshop: My Reports</h1><p><b>Name:</b> ${esc(S.name||'—')} &nbsp; <b>Date:</b> ${new Date().toLocaleDateString('en-GB')}</p>${parts}<p style="margin-top:20pt;font-size:10pt">Designed by: Nazila Motahari</p>`;
+  toast('Choose "Save as PDF" in the print window.'); setTimeout(()=>window.print(),300); };
+
+function openZoom(){ const G=W_().G, z=$('#zoom');
+  z.innerHTML=`<div class="zc"><div class="zh"><div><h4>${esc(G.title)}</h4><p class="task" style="margin:4px 0 8px;color:var(--muted);font-size:.9rem">${esc(G.task)}</p></div><button type="button" class="btn" data-zclose>Close ✕</button></div><div class="zscroll">${graphSVG(G,S.showVals)}</div>${legendHTML(G)}<p class="wc" style="margin:8px 0 0">On a phone, swipe the graph sideways or turn your phone. Press Esc or tap outside the graph to close. Your writing is saved.</p></div>`;
+  z.hidden=false; document.body.style.overflow='hidden'; z.querySelector('[data-zclose]').focus(); }
+function closeZoom(){ const z=$('#zoom'); if(z.hidden) return; z.hidden=true; z.innerHTML=''; document.body.style.overflow=''; const b=document.querySelector('[data-zoom]'); if(b) b.focus(); }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeZoom(); });
+function confetti(){ if(matchMedia('(prefers-reduced-motion: reduce)').matches) return; const c=$('#confetti'),x=c.getContext('2d'); c.width=innerWidth;c.height=innerHeight; const cols=['#b5482a','#2f6f8f','#c98a00','#6a4c93','#ff8a65','#7cc4e4'];
+  const ps=Array.from({length:140},()=>({x:Math.random()*c.width,y:-20-Math.random()*c.height*.4,w:6+Math.random()*6,h:8+Math.random()*8,vy:2+Math.random()*3,vx:-1.5+Math.random()*3,r:Math.random()*6,vr:-.2+Math.random()*.4,col:cols[Math.floor(Math.random()*cols.length)]}));
+  let f=0;(function st(){x.clearRect(0,0,c.width,c.height);ps.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;x.save();x.translate(p.x,p.y);x.rotate(p.r);x.fillStyle=p.col;x.fillRect(-p.w/2,-p.h/2,p.w,p.h);x.restore();});if(++f<160)requestAnimationFrame(st);else x.clearRect(0,0,c.width,c.height);})(); }
+
+renderHome();
+</script>
+</body>
+</html>
